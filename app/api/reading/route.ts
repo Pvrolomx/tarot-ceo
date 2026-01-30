@@ -4,13 +4,39 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
-    const { question, spread, cards } = await request.json();
+    const { question, spread, cards, lang = 'en' } = await request.json();
+    const isSpanish = lang === 'es';
 
     const cardsDescription = cards.map((c: any) => 
-      `- Position "${c.position}": ${c.name}${c.reversed ? ' (REVERSED)' : ''}\n  Keywords: ${c.keywords.join(', ')}\n  Meaning: ${c.reversed ? c.reversedMeaning : c.upright}`
+      `- Position "${c.position}": ${c.name}${c.reversed ? (isSpanish ? ' (INVERTIDA)' : ' (REVERSED)') : ''}\n  Keywords: ${c.keywords.join(', ')}\n  Meaning: ${c.reversed ? c.reversedMeaning : c.upright}`
     ).join('\n\n');
 
-    const prompt = `You are a strategic advisor who uses tarot as a framework for lateral thinking—NOT a mystical fortune teller.
+    const prompt = isSpanish 
+      ? `Eres un asesor estratégico que usa el tarot como marco de pensamiento lateral—NO un adivino místico.
+
+El usuario es un profesional enfrentando esta decisión:
+"${question}"
+
+Sacó estas cartas en una tirada "${spread.name}":
+
+${cardsDescription}
+
+Proporciona una interpretación estratégica en 3-4 párrafos:
+1. Reconoce la pregunta y establece contexto
+2. Interpreta cada posición de carta relacionándola con su situación específica
+3. Sintetiza en consejo accionable
+
+REGLAS CRÍTICAS:
+- Escribe como consultor de McKinsey, no como psíquico
+- Sé directo y accionable
+- Referencia su pregunta específica, no significados genéricos
+- Si está invertida, enfatiza el aspecto de advertencia/sombra
+- Termina con una recomendación clara o pregunta para considerar
+- Sin lenguaje místico—usa framing de negocios/estrategia
+- Mantén conciso pero perspicaz
+- Responde en español`
+
+      : `You are a strategic advisor who uses tarot as a framework for lateral thinking—NOT a mystical fortune teller.
 
 The user is a professional facing this decision:
 "${question}"
@@ -48,7 +74,7 @@ CRITICAL RULES:
     });
 
     const data = await response.json();
-    const interpretation = data.content?.[0]?.text || 'Could not generate interpretation.';
+    const interpretation = data.content?.[0]?.text || (isSpanish ? 'No se pudo generar la interpretación.' : 'Could not generate interpretation.');
 
     return NextResponse.json({ interpretation });
   } catch (error) {
